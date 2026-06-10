@@ -203,27 +203,6 @@ html, body, [class*="css"] {
     margin: 0.8rem 0 0.1rem;
 }
 
-/* ── Toggle button group ───────────────────────────────────────────────── */
-.toggle-row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.4rem; }
-.toggle-btn {
-    padding: 0.45rem 1.1rem;
-    border-radius: 999px;
-    border: 1.5px solid var(--border);
-    background: #fff;
-    color: var(--slate);
-    font-size: 0.83rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.15s ease;
-    font-family: 'Inter', sans-serif;
-}
-.toggle-btn.active {
-    background: var(--blue);
-    border-color: var(--blue);
-    color: #fff;
-    font-weight: 600;
-}
-
 /* ── Nav buttons ───────────────────────────────────────────────────────── */
 .stButton > button {
     font-family: 'Inter', sans-serif !important;
@@ -336,6 +315,19 @@ div[data-testid="stHorizontalBlock"] .stButton > button {
     margin-top: 1px;
 }
 
+/* ── Disclaimer ────────────────────────────────────────────────────────── */
+.disclaimer {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+    font-size: 0.75rem;
+    color: #92400e;
+    line-height: 1.5;
+    margin-top: 1.5rem;
+    text-align: center;
+}
+
 /* ── Divider ───────────────────────────────────────────────────────────── */
 .divider { height: 1px; background: var(--border); margin: 1.5rem 0; }
 
@@ -350,6 +342,22 @@ div[data-testid="stHorizontalBlock"] .stButton > button {
 
 /* ── Selectbox override ────────────────────────────────────────────────── */
 [data-testid="stSelectbox"] label {
+    font-size: 0.78rem !important;
+    font-weight: 600 !important;
+    color: var(--navy) !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.06em !important;
+}
+
+/* ── Checkbox override ─────────────────────────────────────────────────── */
+[data-testid="stCheckbox"] label {
+    font-size: 0.9rem !important;
+    font-weight: 500 !important;
+    color: #374151 !important;
+}
+
+/* ── Number input override ─────────────────────────────────────────────── */
+[data-testid="stNumberInput"] label {
     font-size: 0.78rem !important;
     font-weight: 600 !important;
     color: var(--navy) !important;
@@ -513,7 +521,7 @@ elif st.session_state.step == 3:
         act_level_sel = st.selectbox("Physical Activity Level", ["Low", "Medium", "High"])
         daily_steps   = st.slider("Daily Steps", 0, 20000, 7500, step=500)
     with c2:
-        sleep_hours = st.slider("Sleep Hours / Night", 3.0, 12.0, 7.0, step=0.5)
+        sleep_hours  = st.slider("Sleep Hours / Night", 3.0, 12.0, 7.0, step=0.5)
         stress_level = st.slider("Stress Level (1 = Low, 10 = High)", 1, 10, 4)
 
     st.markdown("<br>", unsafe_allow_html=True)
@@ -538,7 +546,7 @@ elif st.session_state.step == 4:
     # ── Encode inputs ──────────────────────────────────────────────────────
     gender_enc    = 1 if s1["gender"] == "Male" else 0
     insurance_enc = 1 if s1["insurance"] == "Premium" else 0
-    city_enc      = le.transform([s1["city"]])[0]  # Rural=0, Semi-Urban=1, Urban=2
+    city_enc      = le.transform([s1["city"]])[0]   # Rural=0, Semi-Urban=1, Urban=2
     act_map       = {"Low": 0, "Medium": 1, "High": 2}
     act_enc       = act_map[s3["act_level"]]
 
@@ -559,23 +567,23 @@ elif st.session_state.step == 4:
     clf_prob   = clf.predict_proba(scaled_input)[0]    # [prob_0, prob_1]
     risk_score = round(float(clf_prob[1]) * 100, 1)    # % probability of disease
 
-    # ── BUSINESS LOGIC FIX ─────────────────────────────────────────────────
-    # The regression model has an ~₹8000 intercept, so it predicts a baseline
-    # cost even for perfectly healthy people.  We apply the following rule:
-    #   • No disease detected  → ₹1000 (basic consultation / checkup)
-    #   • Disease detected     → use the trained regression model
+    # ── Cost logic ─────────────────────────────────────────────────────────
+    # If no disease detected, show a nominal ₹1,000 checkup cost rather than
+    # the regressor's ~₹8,000 intercept baseline, which is misleading for
+    # healthy individuals.
     if clf_pred == 0:
         medical_cost = 1000
     else:
         medical_cost = max(1000, int(reg.predict(scaled_input)[0]))
 
-    # ── UI ──────────────────────────────────────────────────────────────────
-    st.markdown(f"""
+    # ── Progress bar (100%) ────────────────────────────────────────────────
+    st.markdown("""
     <div class="progress-wrap">
         <div class="progress-fill" style="width:100%"></div>
     </div>
     """, unsafe_allow_html=True)
 
+    # ── Verdict card ───────────────────────────────────────────────────────
     if clf_pred == 0:
         verdict_html = f"""
         <div class="result-hero">
@@ -599,6 +607,7 @@ elif st.session_state.step == 4:
 
     st.markdown(verdict_html, unsafe_allow_html=True)
 
+    # ── Cost card ──────────────────────────────────────────────────────────
     st.markdown(f"""
     <div class="cost-card">
         <div class="cost-label">Estimated Annual Medical Cost</div>
@@ -630,11 +639,21 @@ elif st.session_state.step == 4:
     )
     st.markdown(f"""
     <div class="rec-section">
-        <div class="rec-eyebrow">Recommendations</div>
+        <div class="rec-eyebrow">Personalised Recommendations</div>
         {rec_items}
     </div>
     """, unsafe_allow_html=True)
 
+    # ── Disclaimer ─────────────────────────────────────────────────────────
+    st.markdown("""
+    <div class="disclaimer">
+        ⚠️ <strong>For informational purposes only.</strong>
+        This tool uses a machine learning model trained on anonymised data and does not constitute
+        medical advice. Always consult a qualified healthcare professional for diagnosis and treatment.
+    </div>
+    """, unsafe_allow_html=True)
+
+    # ── Start over ─────────────────────────────────────────────────────────
     st.markdown("<br>", unsafe_allow_html=True)
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
