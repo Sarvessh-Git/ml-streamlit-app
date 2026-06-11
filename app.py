@@ -203,6 +203,27 @@ html, body, [class*="css"] {
     margin: 0.8rem 0 0.1rem;
 }
 
+/* ── Toggle button group ───────────────────────────────────────────────── */
+.toggle-row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.4rem; }
+.toggle-btn {
+    padding: 0.45rem 1.1rem;
+    border-radius: 999px;
+    border: 1.5px solid var(--border);
+    background: #fff;
+    color: var(--slate);
+    font-size: 0.83rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-family: 'Inter', sans-serif;
+}
+.toggle-btn.active {
+    background: var(--blue);
+    border-color: var(--blue);
+    color: #fff;
+    font-weight: 600;
+}
+
 /* ── Nav buttons ───────────────────────────────────────────────────────── */
 .stButton > button {
     font-family: 'Inter', sans-serif !important;
@@ -315,19 +336,6 @@ div[data-testid="stHorizontalBlock"] .stButton > button {
     margin-top: 1px;
 }
 
-/* ── Disclaimer ────────────────────────────────────────────────────────── */
-.disclaimer {
-    background: #fffbeb;
-    border: 1px solid #fde68a;
-    border-radius: 10px;
-    padding: 0.75rem 1rem;
-    font-size: 0.75rem;
-    color: #92400e;
-    line-height: 1.5;
-    margin-top: 1.5rem;
-    text-align: center;
-}
-
 /* ── Divider ───────────────────────────────────────────────────────────── */
 .divider { height: 1px; background: var(--border); margin: 1.5rem 0; }
 
@@ -348,22 +356,6 @@ div[data-testid="stHorizontalBlock"] .stButton > button {
     text-transform: uppercase !important;
     letter-spacing: 0.06em !important;
 }
-
-/* ── Checkbox override ─────────────────────────────────────────────────── */
-[data-testid="stCheckbox"] label {
-    font-size: 0.9rem !important;
-    font-weight: 500 !important;
-    color: #374151 !important;
-}
-
-/* ── Number input override ─────────────────────────────────────────────── */
-[data-testid="stNumberInput"] label {
-    font-size: 0.78rem !important;
-    font-weight: 600 !important;
-    color: var(--navy) !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.06em !important;
-}
 </style>
 """, unsafe_allow_html=True)
 
@@ -371,7 +363,12 @@ div[data-testid="stHorizontalBlock"] .stButton > button {
 if "step" not in st.session_state:
     st.session_state.step = 0  # 0=hero, 1,2,3=form steps, 4=result
 
-def go(n): st.session_state.step = n
+# FIX 1: go() now calls st.rerun() so navigation fires immediately on first click
+# Without this, button clicks required two presses because Streamlit needed an
+# extra rerun cycle to pick up the updated session_state.step value.
+def go(n):
+    st.session_state.step = n
+    st.rerun()
 
 # ── HERO PAGE ────────────────────────────────────────────────────────────────
 if st.session_state.step == 0:
@@ -429,11 +426,16 @@ elif st.session_state.step == 1:
     with c3:
         children = st.slider("No. of Children", 0, 10, 0)
     with c4:
-        gender_sel = st.radio("Gender", ["Male", "Female"], horizontal=True)
+        # FIX 2: st.radio was replaced with st.selectbox for Gender and Insurance.
+        # st.radio fires a rerun on every option click, which was resetting the
+        # form mid-fill and making the page appear to auto-advance.
+        # st.selectbox only fires a rerun when the dropdown is closed with a new
+        # selection, so it does not interfere with the navigation buttons.
+        gender_sel = st.selectbox("Gender", ["Male", "Female"])
 
     c5, c6 = st.columns(2)
     with c5:
-        insurance_sel = st.radio("Insurance Plan", ["Basic", "Premium"], horizontal=True)
+        insurance_sel = st.selectbox("Insurance Plan", ["Basic", "Premium"])
     with c6:
         city_sel = st.selectbox("City Type", ["Urban", "Semi-Urban", "Rural"])
 
@@ -521,7 +523,7 @@ elif st.session_state.step == 3:
         act_level_sel = st.selectbox("Physical Activity Level", ["Low", "Medium", "High"])
         daily_steps   = st.slider("Daily Steps", 0, 20000, 7500, step=500)
     with c2:
-        sleep_hours  = st.slider("Sleep Hours / Night", 3.0, 12.0, 7.0, step=0.5)
+        sleep_hours = st.slider("Sleep Hours / Night", 3.0, 12.0, 7.0, step=0.5)
         stress_level = st.slider("Stress Level (1 = Low, 10 = High)", 1, 10, 4)
 
     st.markdown("<br>", unsafe_allow_html=True)
@@ -546,7 +548,7 @@ elif st.session_state.step == 4:
     # ── Encode inputs ──────────────────────────────────────────────────────
     gender_enc    = 1 if s1["gender"] == "Male" else 0
     insurance_enc = 1 if s1["insurance"] == "Premium" else 0
-    city_enc      = le.transform([s1["city"]])[0]   # Rural=0, Semi-Urban=1, Urban=2
+    city_enc      = le.transform([s1["city"]])[0]  # Rural=0, Semi-Urban=1, Urban=2
     act_map       = {"Low": 0, "Medium": 1, "High": 2}
     act_enc       = act_map[s3["act_level"]]
 
@@ -568,22 +570,20 @@ elif st.session_state.step == 4:
     risk_score = round(float(clf_prob[1]) * 100, 1)    # % probability of disease
 
     # ── Cost logic ─────────────────────────────────────────────────────────
-    # If no disease detected, show a nominal ₹1,000 checkup cost rather than
-    # the regressor's ~₹8,000 intercept baseline, which is misleading for
-    # healthy individuals.
+    # No disease → flat ₹1,000 (basic checkup)
+    # Disease    → regression model output as-is (no override)
     if clf_pred == 0:
         medical_cost = 1000
     else:
         medical_cost = max(1000, int(reg.predict(scaled_input)[0]))
 
-    # ── Progress bar (100%) ────────────────────────────────────────────────
-    st.markdown("""
+    # ── UI ──────────────────────────────────────────────────────────────────
+    st.markdown(f"""
     <div class="progress-wrap">
         <div class="progress-fill" style="width:100%"></div>
     </div>
     """, unsafe_allow_html=True)
 
-    # ── Verdict card ───────────────────────────────────────────────────────
     if clf_pred == 0:
         verdict_html = f"""
         <div class="result-hero">
@@ -607,7 +607,6 @@ elif st.session_state.step == 4:
 
     st.markdown(verdict_html, unsafe_allow_html=True)
 
-    # ── Cost card ──────────────────────────────────────────────────────────
     st.markdown(f"""
     <div class="cost-card">
         <div class="cost-label">Estimated Annual Medical Cost</div>
@@ -639,21 +638,11 @@ elif st.session_state.step == 4:
     )
     st.markdown(f"""
     <div class="rec-section">
-        <div class="rec-eyebrow">Personalised Recommendations</div>
+        <div class="rec-eyebrow">Recommendations</div>
         {rec_items}
     </div>
     """, unsafe_allow_html=True)
 
-    # ── Disclaimer ─────────────────────────────────────────────────────────
-    st.markdown("""
-    <div class="disclaimer">
-        ⚠️ <strong>For informational purposes only.</strong>
-        This tool uses a machine learning model trained on anonymised data and does not constitute
-        medical advice. Always consult a qualified healthcare professional for diagnosis and treatment.
-    </div>
-    """, unsafe_allow_html=True)
-
-    # ── Start over ─────────────────────────────────────────────────────────
     st.markdown("<br>", unsafe_allow_html=True)
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
