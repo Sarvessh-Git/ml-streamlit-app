@@ -3,9 +3,13 @@ import numpy as np
 import pandas as pd
 import pickle
 import warnings
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 warnings.filterwarnings("ignore")
 
-# ── Page config ─────────────────────────────────────────────────────────────
+# ── Page config ──────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="MediPredict · AI Health Intelligence",
     page_icon="🩺",
@@ -33,384 +37,357 @@ columns, le, scaler, reg, clf = load_models()
 # ── Global CSS ───────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,700;1,600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap');
 
-html, body, [class*="css"] {
-    font-family: 'Inter', sans-serif;
-}
+html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 
-/* Hide Streamlit chrome */
 #MainMenu, footer, header { visibility: hidden; }
-.block-container { padding: 0 1rem 3rem 1rem; max-width: 760px; }
-
-/* ── Base palette ──────────────────────────────────────────────────────── */
-:root {
-    --navy:    #1a2744;
-    --blue:    #2563eb;
-    --sky:     #60a5fa;
-    --teal:    #0d9488;
-    --mint:    #ccfbf1;
-    --cream:   #f8fafc;
-    --slate:   #64748b;
-    --border:  #e2e8f0;
-    --red:     #ef4444;
-    --amber:   #f59e0b;
-    --green:   #22c55e;
+.block-container {
+    padding: 2rem 1rem 4rem 1rem;
+    max-width: 820px;
+    background: #eef1f7;
 }
 
-/* ── Hero ──────────────────────────────────────────────────────────────── */
-.hero {
-    background: linear-gradient(135deg, #1a2744 0%, #1e3a5f 50%, #0f4c75 100%);
-    border-radius: 20px;
-    padding: 3rem 2.5rem 2.5rem;
-    margin: 1.5rem 0 2rem;
-    position: relative;
-    overflow: hidden;
-    text-align: center;
-}
-.hero::before {
-    content: '';
-    position: absolute;
-    top: -60px; right: -60px;
-    width: 220px; height: 220px;
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(96,165,250,0.15) 0%, transparent 70%);
-}
-.hero::after {
-    content: '';
-    position: absolute;
-    bottom: -40px; left: -40px;
-    width: 160px; height: 160px;
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(13,148,136,0.12) 0%, transparent 70%);
-}
-.hero-eyebrow {
-    font-size: 0.68rem;
-    letter-spacing: 0.22em;
-    text-transform: uppercase;
-    color: var(--sky);
-    font-weight: 500;
-    margin-bottom: 0.8rem;
-}
-.hero-title {
-    font-family: 'Playfair Display', serif;
-    font-size: 3.2rem;
-    font-weight: 700;
-    color: #ffffff;
-    line-height: 1.1;
-    margin: 0 0 0.3rem;
-}
-.hero-title em {
-    font-style: italic;
-    color: var(--sky);
-}
-.hero-sub {
-    color: rgba(255,255,255,0.72);
-    font-size: 0.95rem;
-    max-width: 480px;
-    margin: 0.6rem auto 1.8rem;
-    line-height: 1.6;
-}
-.hero-stats {
+/* Page background */
+.stApp { background: #eef1f7; }
+
+/* ── Step tracker ───────────────────────────────────────────────────────── */
+.tracker-wrap {
     display: flex;
-    justify-content: center;
-    gap: 1px;
-    background: rgba(255,255,255,0.08);
-    border-radius: 12px;
-    overflow: hidden;
-    max-width: 380px;
-    margin: 0 auto;
+    align-items: center;
+    margin: 0 0 2rem 0;
+    padding: 0 0.5rem;
 }
-.hero-stat {
+.tracker-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.3rem;
+    position: relative;
+    z-index: 1;
+}
+.tracker-circle {
+    width: 42px; height: 42px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 1rem;
+    flex-shrink: 0;
+}
+.tracker-circle.done   { background: #3d8c7c; color: #fff; }
+.tracker-circle.active { background: #2563eb; color: #fff; }
+.tracker-circle.future { background: #fff; color: #94a3b8; border: 2px solid #cbd5e1; }
+.tracker-label {
+    font-size: 0.7rem; font-weight: 600;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    color: #64748b;
+}
+.tracker-line {
     flex: 1;
-    padding: 1rem 0.5rem;
-    text-align: center;
-    background: rgba(255,255,255,0.04);
+    height: 3px;
+    border-radius: 999px;
+    margin: 0 0.3rem;
+    margin-bottom: 1.2rem;
 }
-.hero-stat:not(:last-child) { border-right: 1px solid rgba(255,255,255,0.08); }
-.stat-num {
-    font-family: 'Playfair Display', serif;
-    font-size: 1.9rem;
-    color: var(--sky);
-    font-weight: 700;
-    line-height: 1;
-}
-.stat-label {
-    font-size: 0.6rem;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: rgba(255,255,255,0.45);
-    margin-top: 0.3rem;
-}
+.tracker-line.done   { background: #3d8c7c; }
+.tracker-line.future { background: #cbd5e1; }
 
-/* ── Step card ─────────────────────────────────────────────────────────── */
+/* ── Step card ──────────────────────────────────────────────────────────── */
 .step-card {
-    background: #ffffff;
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 1.6rem 1.8rem 1rem;
-    margin-bottom: 1.6rem;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.04);
+    background: #fff;
+    border-radius: 20px;
+    padding: 2rem 2.2rem 1.8rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    border-top: 4px solid transparent;
+    border-image: linear-gradient(90deg, #2563eb, #3d8c7c) 1;
+    border-top-left-radius: 20px;
+    border-top-right-radius: 20px;
 }
 .step-pill {
     display: inline-block;
-    background: var(--mint);
-    color: var(--teal);
+    background: #e8f0fe;
+    color: #2563eb;
     font-size: 0.65rem;
     font-weight: 700;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    padding: 0.25rem 0.7rem;
-    border-radius: 999px;
-    margin-bottom: 0.6rem;
-}
-.step-title {
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: var(--navy);
-    margin: 0 0 0.25rem;
-}
-.step-title em { font-style: italic; color: var(--blue); }
-.step-desc {
-    font-size: 0.83rem;
-    color: var(--slate);
-    margin-bottom: 0.2rem;
-    line-height: 1.5;
-}
-
-/* ── Progress bar ──────────────────────────────────────────────────────── */
-.progress-wrap {
-    background: var(--border);
-    border-radius: 999px;
-    height: 4px;
-    margin-bottom: 2rem;
-    overflow: hidden;
-}
-.progress-fill {
-    height: 100%;
-    border-radius: 999px;
-    background: linear-gradient(90deg, var(--teal), var(--blue));
-    transition: width 0.4s ease;
-}
-
-/* ── Section label ─────────────────────────────────────────────────────── */
-.field-label {
-    font-size: 0.78rem;
-    font-weight: 600;
-    color: var(--navy);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    margin: 0.8rem 0 0.1rem;
-}
-
-/* ── Toggle button group ───────────────────────────────────────────────── */
-.toggle-row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.4rem; }
-.toggle-btn {
-    padding: 0.45rem 1.1rem;
-    border-radius: 999px;
-    border: 1.5px solid var(--border);
-    background: #fff;
-    color: var(--slate);
-    font-size: 0.83rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.15s ease;
-    font-family: 'Inter', sans-serif;
-}
-.toggle-btn.active {
-    background: var(--blue);
-    border-color: var(--blue);
-    color: #fff;
-    font-weight: 600;
-}
-
-/* ── Nav buttons ───────────────────────────────────────────────────────── */
-.stButton > button {
-    font-family: 'Inter', sans-serif !important;
-    font-weight: 600 !important;
-    border-radius: 12px !important;
-    transition: all 0.2s ease !important;
-}
-div[data-testid="stHorizontalBlock"] .stButton > button {
-    width: 100%;
-}
-
-/* ── Result card ───────────────────────────────────────────────────────── */
-.result-hero {
-    background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
-    border: 1px solid #bbf7d0;
-    border-radius: 18px;
-    padding: 2rem 2rem 1.6rem;
-    margin: 1rem 0;
-    text-align: center;
-}
-.result-hero.risk {
-    background: linear-gradient(135deg, #fff7ed 0%, #fef3c7 100%);
-    border-color: #fed7aa;
-}
-.result-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    background: #dcfce7;
-    color: #16a34a;
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.16em;
     text-transform: uppercase;
     padding: 0.3rem 0.8rem;
     border-radius: 999px;
-    margin-bottom: 0.8rem;
+    margin-bottom: 0.9rem;
 }
-.result-badge.risk { background: #fed7aa; color: #c2410c; }
-.result-main {
+.step-title {
+    font-family: 'Inter', sans-serif;
+    font-size: 1.35rem;
+    font-weight: 400;
+    color: #1e293b;
+    margin: 0 0 0.4rem;
+}
+.step-title em {
     font-family: 'Playfair Display', serif;
-    font-size: 2.4rem;
-    font-weight: 700;
-    color: var(--navy);
-    line-height: 1.1;
-    margin: 0.2rem 0;
-}
-.result-sub {
-    font-size: 0.85rem;
-    color: var(--slate);
-    margin-top: 0.3rem;
-}
-.cost-card {
-    background: #fff;
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 1.4rem 1.6rem;
-    text-align: center;
-    margin-top: 1rem;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-}
-.cost-label {
-    font-size: 0.7rem;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--slate);
+    font-style: italic;
     font-weight: 600;
+    color: #2563eb;
+}
+.step-desc {
+    font-size: 0.9rem;
+    color: #64748b;
+    line-height: 1.6;
+}
+
+/* ── Field label ────────────────────────────────────────────────────────── */
+.field-lbl {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #334155;
+    margin: 1.4rem 0 0.6rem;
+}
+
+/* ── Pill-style buttons ─────────────────────────────────────────────────── */
+.stButton > button {
+    font-family: 'Inter', sans-serif !important;
+    font-weight: 500 !important;
+    border-radius: 999px !important;
+    padding: 0.6rem 1.4rem !important;
+    font-size: 0.9rem !important;
+    transition: all 0.2s ease !important;
+}
+
+/* Selected pill button style via data attribute */
+[data-pill-selected="true"] > button {
+    background-color: #2563eb !important;
+    color: #fff !important;
+    border: none !important;
+}
+
+/* ── Slider overrides ───────────────────────────────────────────────────── */
+[data-testid="stSlider"] label {
+    font-size: 0.85rem !important;
+    font-weight: 500 !important;
+    color: #334155 !important;
+    letter-spacing: 0 !important;
+    text-transform: none !important;
+}
+
+/* ── Results page ───────────────────────────────────────────────────────── */
+.result-eyebrow {
+    font-size: 0.65rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: #2563eb;
+    font-weight: 700;
+    text-align: center;
     margin-bottom: 0.4rem;
 }
-.cost-amount {
+.result-headline {
     font-family: 'Playfair Display', serif;
     font-size: 2.6rem;
     font-weight: 700;
-    color: var(--blue);
+    color: #1e293b;
+    text-align: center;
+    margin: 0 0 0.3rem;
 }
-.cost-note {
-    font-size: 0.75rem;
-    color: var(--slate);
-    margin-top: 0.3rem;
+.result-sub {
+    font-size: 0.9rem;
+    color: #64748b;
+    text-align: center;
+    margin-bottom: 2rem;
 }
-.rec-section {
-    margin-top: 1.5rem;
+.stat-card {
+    background: #fff;
+    border-radius: 18px;
+    padding: 1.6rem 1.8rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    height: 100%;
 }
-.rec-eyebrow {
-    font-size: 0.65rem;
+.stat-card.blue-accent  { border-top: 4px solid #2563eb; }
+.stat-card.red-accent   { border-top: 4px solid #ef4444; }
+.stat-card.green-accent { border-top: 4px solid #3d8c7c; }
+.stat-eyebrow {
+    font-size: 0.62rem;
     letter-spacing: 0.18em;
     text-transform: uppercase;
-    color: var(--teal);
+    color: #94a3b8;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+.stat-value {
+    font-family: 'Playfair Display', serif;
+    font-size: 2.2rem;
     font-weight: 700;
+    color: #1e293b;
+    line-height: 1.1;
+}
+.stat-note {
+    font-size: 0.8rem;
+    color: #64748b;
+    margin-top: 0.4rem;
+}
+.chart-card {
+    background: #fff;
+    border-radius: 18px;
+    padding: 1.4rem 1.6rem 1rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    margin-bottom: 1.2rem;
+}
+.chart-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 0.2rem;
+    text-align: center;
+}
+.rec-section-title {
+    font-size: 0.65rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: #2563eb;
+    font-weight: 700;
+    margin: 2rem 0 1rem;
+}
+.rec-card {
+    background: #fff;
+    border-radius: 14px;
+    padding: 1.2rem 1.4rem;
     margin-bottom: 0.8rem;
+    border-left: 4px solid #2563eb;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
-.rec-item {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.7rem;
-    padding: 0.7rem 0;
-    border-bottom: 1px solid var(--border);
-    font-size: 0.85rem;
-    color: #374151;
-    line-height: 1.45;
+.rec-card-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #1e293b;
+    margin-bottom: 0.3rem;
 }
-.rec-item:last-child { border-bottom: none; }
-.rec-icon {
-    width: 26px; height: 26px;
-    border-radius: 8px;
-    background: var(--mint);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 0.85rem;
-    flex-shrink: 0;
-    margin-top: 1px;
-}
-
-/* ── Divider ───────────────────────────────────────────────────────────── */
-.divider { height: 1px; background: var(--border); margin: 1.5rem 0; }
-
-/* ── Slider label override ─────────────────────────────────────────────── */
-[data-testid="stSlider"] label {
-    font-size: 0.78rem !important;
-    font-weight: 600 !important;
-    color: var(--navy) !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.06em !important;
-}
-
-/* ── Selectbox override ────────────────────────────────────────────────── */
-[data-testid="stSelectbox"] label {
-    font-size: 0.78rem !important;
-    font-weight: 600 !important;
-    color: var(--navy) !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.06em !important;
+.rec-card-body {
+    font-size: 0.83rem;
+    color: #64748b;
+    line-height: 1.5;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# ── Session state init ───────────────────────────────────────────────────────
-if "step" not in st.session_state:
-    st.session_state.step = 0  # 0=hero, 1,2,3=form steps, 4=result
+# ── Session state ────────────────────────────────────────────────────────────
+defaults = {
+    "step": 0,
+    # Step 1 — Personal
+    "gender": "Male",
+    "insurance": "Basic",
+    "city": "Urban",
+    # Step 2 — Lifestyle
+    "smoker": "No",
+    "act_level": "Medium",
+    # Step 3 — Conditions
+    "diabetes": "No",
+    "hypertension": "No",
+    "heart_disease": "No",
+    "asthma": "No",
+}
+for k, v in defaults.items():
+    if k not in st.session_state:
+        st.session_state[k] = v
 
-# FIX 1: go() now calls st.rerun() so navigation fires immediately on first click
-# Without this, button clicks required two presses because Streamlit needed an
-# extra rerun cycle to pick up the updated session_state.step value.
 def go(n):
     st.session_state.step = n
     st.rerun()
 
-# ── HERO PAGE ────────────────────────────────────────────────────────────────
+
+# ── Helper: pill radio ───────────────────────────────────────────────────────
+def pill_radio(key, options, num_cols=None):
+    """Render pill-style radio buttons using only Streamlit buttons (no duplicate HTML divs)."""
+    current = st.session_state.get(key, options[0])
+    if num_cols is None:
+        num_cols = len(options)
+    cols = st.columns(num_cols)
+    for i, opt in enumerate(options):
+        with cols[i]:
+            is_selected = (current == opt)
+            # Use Streamlit's type parameter to visually distinguish selected vs unselected
+            btn_type = "primary" if is_selected else "secondary"
+            if st.button(opt, key=f"btn_{key}_{opt}", use_container_width=True, type=btn_type):
+                st.session_state[key] = opt
+                st.rerun()
+    return st.session_state.get(key, options[0])
+
+
+# ── Helper: step tracker HTML ────────────────────────────────────────────────
+def render_tracker(active_step, labels):
+    """active_step is 1-indexed"""
+    parts = []
+    for i, lbl in enumerate(labels):
+        snum = i + 1
+        if snum < active_step:
+            cclass = "done"
+        elif snum == active_step:
+            cclass = "active"
+        else:
+            cclass = "future"
+        parts.append(f"""
+        <div class="tracker-step">
+            <div class="tracker-circle {cclass}">{snum}</div>
+            <div class="tracker-label">{lbl}</div>
+        </div>""")
+        if i < len(labels) - 1:
+            lclass = "done" if snum < active_step else "future"
+            parts.append(f'<div class="tracker-line {lclass}"></div>')
+    st.markdown(f'<div class="tracker-wrap">{"".join(parts)}</div>', unsafe_allow_html=True)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGE 0 — HERO
+# ══════════════════════════════════════════════════════════════════════════════
 if st.session_state.step == 0:
     st.markdown("""
-    <div class="hero">
-        <div class="hero-eyebrow">AI · Health Intelligence</div>
-        <div class="hero-title">Medi<em>Predict</em></div>
-        <div class="hero-sub">
+    <div style="text-align:center; padding: 4rem 1rem 2rem;">
+        <div style="font-size:0.65rem; letter-spacing:0.22em; text-transform:uppercase;
+                    color:#2563eb; font-weight:700; margin-bottom:0.6rem;">
+            AI · HEALTH INTELLIGENCE
+        </div>
+        <div style="font-family:'Playfair Display',serif; font-size:3.4rem; font-weight:700;
+                    color:#1e293b; line-height:1.1; margin-bottom:0.8rem;">
+            Medi<em style="color:#2563eb; font-style:italic;">Predict</em>
+        </div>
+        <div style="font-size:1rem; color:#64748b; max-width:480px; margin:0 auto 2.5rem;
+                    line-height:1.7;">
             Enter your health profile and receive an instant estimate of your
             annual medical cost alongside a personalised disease risk score.
         </div>
-        <div class="hero-stats">
-            <div class="hero-stat">
-                <div class="stat-num">3</div>
-                <div class="stat-label">Steps</div>
+        <div style="display:flex; justify-content:center; gap:2.5rem; margin-bottom:3rem;">
+            <div style="text-align:center;">
+                <div style="font-family:'Playfair Display',serif; font-size:2rem;
+                            font-weight:700; color:#2563eb;">3</div>
+                <div style="font-size:0.7rem; text-transform:uppercase; letter-spacing:0.1em;
+                            color:#94a3b8; font-weight:600;">Steps</div>
             </div>
-            <div class="hero-stat">
-                <div class="stat-num">ML</div>
-                <div class="stat-label">Powered</div>
+            <div style="text-align:center;">
+                <div style="font-family:'Playfair Display',serif; font-size:2rem;
+                            font-weight:700; color:#2563eb;">ML</div>
+                <div style="font-size:0.7rem; text-transform:uppercase; letter-spacing:0.1em;
+                            color:#94a3b8; font-weight:600;">Powered</div>
             </div>
-            <div class="hero-stat">
-                <div class="stat-num">2</div>
-                <div class="stat-label">Outputs</div>
+            <div style="text-align:center;">
+                <div style="font-family:'Playfair Display',serif; font-size:2rem;
+                            font-weight:700; color:#2563eb;">2</div>
+                <div style="font-size:0.7rem; text-transform:uppercase; letter-spacing:0.1em;
+                            color:#94a3b8; font-weight:600;">Outputs</div>
             </div>
         </div>
     </div>
     """, unsafe_allow_html=True)
-
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         if st.button("Begin Health Assessment →", type="primary", use_container_width=True):
             go(1)
 
-# ── STEP 1: Personal Profile ─────────────────────────────────────────────────
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGE 1 — PERSONAL PROFILE
+# ══════════════════════════════════════════════════════════════════════════════
 elif st.session_state.step == 1:
-    progress = 33
-    st.markdown(f"""
-    <div class="progress-wrap">
-        <div class="progress-fill" style="width:{progress}%"></div>
-    </div>
+    render_tracker(1, ["Profile", "Lifestyle", "History"])
+
+    st.markdown("""
     <div class="step-card">
-        <div class="step-pill">Step 1 of 3</div>
+        <div class="step-pill">STEP 1 OF 3</div>
         <div class="step-title">Personal <em>Profile</em></div>
         <div class="step-desc">Tell us about yourself — age, body metrics, and coverage details.</div>
     </div>
@@ -424,229 +401,393 @@ elif st.session_state.step == 1:
 
     c3, c4 = st.columns(2)
     with c3:
-        children = st.slider("No. of Children", 0, 10, 0)
+        children = st.slider("Dependents", 0, 10, 0)
     with c4:
-        # FIX 2: st.radio was replaced with st.selectbox for Gender and Insurance.
-        # st.radio fires a rerun on every option click, which was resetting the
-        # form mid-fill and making the page appear to auto-advance.
-        # st.selectbox only fires a rerun when the dropdown is closed with a new
-        # selection, so it does not interfere with the navigation buttons.
-        gender_sel = st.selectbox("Gender", ["Male", "Female"])
+        st.markdown('<div class="field-lbl">Gender</div>', unsafe_allow_html=True)
+        pill_radio("gender", ["Male", "Female"], num_cols=2)
 
-    c5, c6 = st.columns(2)
-    with c5:
-        insurance_sel = st.selectbox("Insurance Plan", ["Basic", "Premium"])
-    with c6:
-        city_sel = st.selectbox("City Type", ["Urban", "Semi-Urban", "Rural"])
+    st.markdown('<div class="field-lbl">Insurance</div>', unsafe_allow_html=True)
+    pill_radio("insurance", ["Basic", "Premium"], num_cols=2)
+
+    st.markdown('<div class="field-lbl">City</div>', unsafe_allow_html=True)
+    pill_radio("city", ["Urban", "Semi-Urban", "Rural"], num_cols=3)
 
     st.markdown("<br>", unsafe_allow_html=True)
-    col_back, col_next = st.columns([1, 1])
-    with col_back:
+    cb, cn = st.columns([1, 1])
+    with cb:
         if st.button("← Back", use_container_width=True):
             go(0)
-    with col_next:
+    with cn:
         if st.button("Next →", type="primary", use_container_width=True):
             st.session_state.s1 = dict(
                 age=age, bmi=bmi, children=children,
-                gender=gender_sel, insurance=insurance_sel, city=city_sel
+                gender=st.session_state.gender,
+                insurance=st.session_state.insurance,
+                city=st.session_state.city,
             )
             go(2)
 
-# ── STEP 2: Health Conditions ────────────────────────────────────────────────
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGE 2 — LIFESTYLE HABITS
+# ══════════════════════════════════════════════════════════════════════════════
 elif st.session_state.step == 2:
-    progress = 66
-    st.markdown(f"""
-    <div class="progress-wrap">
-        <div class="progress-fill" style="width:{progress}%"></div>
-    </div>
+    render_tracker(2, ["Profile", "Lifestyle", "History"])
+
+    st.markdown("""
     <div class="step-card">
-        <div class="step-pill">Step 2 of 3</div>
-        <div class="step-title">Health <em>Conditions</em></div>
-        <div class="step-desc">Select any diagnosed conditions and your smoking status.</div>
+        <div class="step-pill">STEP 2 OF 3</div>
+        <div class="step-title">Lifestyle <em>Habits</em></div>
+        <div class="step-desc">Smoking and activity level are among the strongest cost predictors.</div>
     </div>
     """, unsafe_allow_html=True)
 
-    smoker = st.checkbox("🚬  Smoker")
+    st.markdown('<div class="field-lbl">Do you currently smoke?</div>', unsafe_allow_html=True)
+    pill_radio("smoker", ["No", "Yes"], num_cols=2)
+
+    st.markdown('<div class="field-lbl">Physical Activity Level</div>', unsafe_allow_html=True)
+    pill_radio("act_level", ["Low", "Medium", "High"], num_cols=3)
+
+    st.markdown("<br>", unsafe_allow_html=True)
     c1, c2 = st.columns(2)
     with c1:
-        diabetes      = st.checkbox("🩸  Diabetes")
-        hypertension  = st.checkbox("💊  Hypertension")
+        daily_steps = st.slider("Daily Steps", 0, 20000, 7500, step=500)
     with c2:
-        heart_disease = st.checkbox("❤️  Heart Disease")
-        asthma        = st.checkbox("🫁  Asthma")
+        sleep_hours = st.slider("Sleep Hours / Night", 3.0, 12.0, 7.0, step=0.5)
 
-    st.markdown("<div class='divider'></div>", unsafe_allow_html=True)
     c3, c4 = st.columns(2)
     with c3:
-        doc_visits = st.slider("Doctor Visits / Year", 0, 20, 2)
+        stress_level = st.slider("Stress Level (1=Low, 10=High)", 1, 10, 4)
     with c4:
-        hosp_admissions = st.slider("Hospital Admissions / Year", 0, 10, 0)
+        doc_visits = st.slider("Doctor Visits / Year", 0, 20, 2)
 
     c5, c6 = st.columns(2)
     with c5:
-        medication_count = st.slider("No. of Medications", 0, 15, 1)
+        hosp_admissions = st.slider("Hospital Admissions / Year", 0, 10, 0)
     with c6:
-        prev_cost = st.number_input("Previous Year Medical Cost (₹)", 0, 500000, 2000, step=500)
+        medication_count = st.slider("No. of Medications", 0, 15, 1)
+
+    prev_cost = st.number_input("Previous Year Medical Cost (₹)", 0, 500000, 2000, step=500)
 
     st.markdown("<br>", unsafe_allow_html=True)
-    col_back, col_next = st.columns([1, 1])
-    with col_back:
+    cb, cn = st.columns([1, 1])
+    with cb:
         if st.button("← Back", use_container_width=True):
             go(1)
-    with col_next:
+    with cn:
         if st.button("Next →", type="primary", use_container_width=True):
             st.session_state.s2 = dict(
-                smoker=int(smoker), diabetes=int(diabetes),
-                hypertension=int(hypertension), heart_disease=int(heart_disease),
-                asthma=int(asthma), doc_visits=doc_visits,
-                hosp_admissions=hosp_admissions, medication_count=medication_count,
-                prev_cost=prev_cost
+                smoker=1 if st.session_state.smoker == "Yes" else 0,
+                act_level=st.session_state.act_level,
+                daily_steps=daily_steps,
+                sleep_hours=sleep_hours,
+                stress_level=stress_level,
+                doc_visits=doc_visits,
+                hosp_admissions=hosp_admissions,
+                medication_count=medication_count,
+                prev_cost=prev_cost,
             )
             go(3)
 
-# ── STEP 3: Lifestyle ────────────────────────────────────────────────────────
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGE 3 — MEDICAL HISTORY
+# ══════════════════════════════════════════════════════════════════════════════
 elif st.session_state.step == 3:
-    progress = 90
-    st.markdown(f"""
-    <div class="progress-wrap">
-        <div class="progress-fill" style="width:{progress}%"></div>
-    </div>
+    render_tracker(3, ["Profile", "Lifestyle", "History"])
+
+    st.markdown("""
     <div class="step-card">
-        <div class="step-pill">Step 3 of 3</div>
-        <div class="step-title">Daily <em>Lifestyle</em></div>
-        <div class="step-desc">Your habits shape long-term health costs more than any single factor.</div>
+        <div class="step-pill">STEP 3 OF 3</div>
+        <div class="step-title">Medical <em>History</em></div>
+        <div class="step-desc">Existing conditions help calibrate the risk model. Select all that apply.</div>
     </div>
     """, unsafe_allow_html=True)
 
     c1, c2 = st.columns(2)
     with c1:
-        act_level_sel = st.selectbox("Physical Activity Level", ["Low", "Medium", "High"])
-        daily_steps   = st.slider("Daily Steps", 0, 20000, 7500, step=500)
+        st.markdown('<div class="field-lbl">Diabetes</div>', unsafe_allow_html=True)
+        pill_radio("diabetes", ["No", "Yes"], num_cols=2)
     with c2:
-        sleep_hours = st.slider("Sleep Hours / Night", 3.0, 12.0, 7.0, step=0.5)
-        stress_level = st.slider("Stress Level (1 = Low, 10 = High)", 1, 10, 4)
+        st.markdown('<div class="field-lbl">Hypertension</div>', unsafe_allow_html=True)
+        pill_radio("hypertension", ["No", "Yes"], num_cols=2)
+
+    c3, c4 = st.columns(2)
+    with c3:
+        st.markdown('<div class="field-lbl">Heart Disease</div>', unsafe_allow_html=True)
+        pill_radio("heart_disease", ["No", "Yes"], num_cols=2)
+    with c4:
+        st.markdown('<div class="field-lbl">Asthma</div>', unsafe_allow_html=True)
+        pill_radio("asthma", ["No", "Yes"], num_cols=2)
 
     st.markdown("<br>", unsafe_allow_html=True)
-    col_back, col_predict = st.columns([1, 1])
-    with col_back:
+    cb, cn, cr = st.columns([1, 1, 1])
+    with cb:
         if st.button("← Back", use_container_width=True):
             go(2)
-    with col_predict:
-        if st.button("Generate Prediction ✦", type="primary", use_container_width=True):
+    with cn:
+        if st.button("Predict Now →", type="primary", use_container_width=True):
             st.session_state.s3 = dict(
-                act_level=act_level_sel, daily_steps=daily_steps,
-                sleep_hours=sleep_hours, stress_level=stress_level
+                diabetes=1 if st.session_state.diabetes == "Yes" else 0,
+                hypertension=1 if st.session_state.hypertension == "Yes" else 0,
+                heart_disease=1 if st.session_state.heart_disease == "Yes" else 0,
+                asthma=1 if st.session_state.asthma == "Yes" else 0,
             )
             go(4)
+    with cr:
+        if st.button("Restart", use_container_width=True):
+            for key in ["s1", "s2", "s3", "gender", "insurance", "city",
+                        "smoker", "act_level", "diabetes", "hypertension",
+                        "heart_disease", "asthma"]:
+                st.session_state.pop(key, None)
+            go(0)
 
-# ── STEP 4: Results ──────────────────────────────────────────────────────────
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGE 4 — RESULTS
+# ══════════════════════════════════════════════════════════════════════════════
 elif st.session_state.step == 4:
     s1 = st.session_state.get("s1", {})
     s2 = st.session_state.get("s2", {})
     s3 = st.session_state.get("s3", {})
 
-    # ── Encode inputs ──────────────────────────────────────────────────────
-    gender_enc    = 1 if s1["gender"] == "Male" else 0
-    insurance_enc = 1 if s1["insurance"] == "Premium" else 0
-    city_enc      = le.transform([s1["city"]])[0]  # Rural=0, Semi-Urban=1, Urban=2
+    # ── Encode ────────────────────────────────────────────────────────────
+    gender_enc    = 1 if s1.get("gender", "Male") == "Male" else 0
+    insurance_enc = 1 if s1.get("insurance", "Basic") == "Premium" else 0
+    city_enc      = le.transform([s1.get("city", "Urban")])[0]
     act_map       = {"Low": 0, "Medium": 1, "High": 2}
-    act_enc       = act_map[s3["act_level"]]
+    act_enc       = act_map.get(s2.get("act_level", "Medium"), 1)
 
     input_data = pd.DataFrame([[
-        s1["age"], gender_enc, s1["bmi"],
-        s2["smoker"], s2["diabetes"], s2["hypertension"],
-        s2["heart_disease"], s2["asthma"],
-        act_enc, s3["daily_steps"], s3["sleep_hours"], s3["stress_level"],
-        s2["doc_visits"], s2["hosp_admissions"], s2["medication_count"],
-        insurance_enc, 60.0,   # insurance_coverage_pct — sensible default
-        city_enc, s2["prev_cost"]
+        s1.get("age", 30), gender_enc, s1.get("bmi", 24.0),
+        s2.get("smoker", 0), s3.get("diabetes", 0), s3.get("hypertension", 0),
+        s3.get("heart_disease", 0), s3.get("asthma", 0),
+        act_enc, s2.get("daily_steps", 7500), s2.get("sleep_hours", 7.0),
+        s2.get("stress_level", 4),
+        s2.get("doc_visits", 2), s2.get("hosp_admissions", 0),
+        s2.get("medication_count", 1),
+        insurance_enc, 60.0,
+        city_enc, s2.get("prev_cost", 2000)
     ]], columns=columns)
 
     scaled_input = scaler.transform(input_data)
 
-    # ── Predictions ────────────────────────────────────────────────────────
-    clf_pred   = clf.predict(scaled_input)[0]          # 0 = No Disease, 1 = Disease
-    clf_prob   = clf.predict_proba(scaled_input)[0]    # [prob_0, prob_1]
-    risk_score = round(float(clf_prob[1]) * 100, 1)    # % probability of disease
+    clf_pred   = clf.predict(scaled_input)[0]
+    clf_prob   = clf.predict_proba(scaled_input)[0]
+    risk_score = round(float(clf_prob[1]) * 100, 1)
 
-    # ── Cost logic ─────────────────────────────────────────────────────────
-    # No disease → flat ₹1,000 (basic checkup)
-    # Disease    → regression model output as-is (no override)
     if clf_pred == 0:
         medical_cost = 1000
     else:
         medical_cost = max(1000, int(reg.predict(scaled_input)[0]))
 
-    # ── UI ──────────────────────────────────────────────────────────────────
-    st.markdown(f"""
-    <div class="progress-wrap">
-        <div class="progress-fill" style="width:100%"></div>
-    </div>
+    # ── Header ────────────────────────────────────────────────────────────
+    st.markdown("""
+    <div class="result-eyebrow">ASSESSMENT COMPLETE</div>
+    <div class="result-headline">Your Health Report</div>
+    <div class="result-sub">Based on the profile you provided</div>
     """, unsafe_allow_html=True)
 
-    if clf_pred == 0:
-        verdict_html = f"""
-        <div class="result-hero">
-            <div class="result-badge">✓ No Disease Detected</div>
-            <div class="result-main">You're in good shape!</div>
-            <div class="result-sub">
-                Disease probability: <strong>{risk_score}%</strong> — well within the healthy range.
-            </div>
-        </div>
-        """
-    else:
-        verdict_html = f"""
-        <div class="result-hero risk">
-            <div class="result-badge risk">⚠ Disease Risk Detected</div>
-            <div class="result-main">Medical attention advised</div>
-            <div class="result-sub">
-                Disease probability: <strong>{risk_score}%</strong> — please consult a doctor.
-            </div>
-        </div>
-        """
+    # ── Top stat cards ────────────────────────────────────────────────────
+    risk_label = "High Risk" if clf_pred == 1 else "Low Risk"
+    risk_note  = "Specialist consultation advised" if clf_pred == 1 else "Keep up your healthy habits"
+    risk_accent = "red-accent" if clf_pred == 1 else "green-accent"
 
-    st.markdown(verdict_html, unsafe_allow_html=True)
-
-    st.markdown(f"""
-    <div class="cost-card">
-        <div class="cost-label">Estimated Annual Medical Cost</div>
-        <div class="cost-amount">₹{medical_cost:,}</div>
-        <div class="cost-note">
-            {"Basic consultation / checkup cost" if clf_pred == 0 else "Model-estimated treatment & care cost"}
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown(f"""
+        <div class="stat-card blue-accent">
+            <div class="stat-eyebrow">ANNUAL MEDICAL COST</div>
+            <div class="stat-value">₹{medical_cost:,}</div>
+            <div class="stat-note">Estimated for your profile</div>
         </div>
-    </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
+    with c2:
+        st.markdown(f"""
+        <div class="stat-card {risk_accent}">
+            <div class="stat-eyebrow">DISEASE RISK</div>
+            <div class="stat-value">{risk_label}</div>
+            <div class="stat-note">{risk_note}</div>
+        </div>
+        """, unsafe_allow_html=True)
 
-    # ── Recommendations ────────────────────────────────────────────────────
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # ── Charts row 1: Profile Overview + Condition Flags ─────────────────
+    BG = "#ffffff"
+    TEXT = "#1e293b"
+    MUTED = "#94a3b8"
+
+    c3, c4 = st.columns(2)
+
+    with c3:
+        st.markdown('<div class="chart-card"><div class="chart-title">Profile Overview</div>', unsafe_allow_html=True)
+        act_val = act_map.get(s2.get("act_level", "Medium"), 1)
+        fig1, ax1 = plt.subplots(figsize=(4, 2.8))
+        fig1.patch.set_facecolor(BG)
+        ax1.set_facecolor(BG)
+        labels_bar = ["Age", "BMI", "Children", "Activity"]
+        values_bar = [s1.get("age", 30), s1.get("bmi", 24.0), s1.get("children", 0), act_val]
+        colors_bar = ["#3b82f6", "#3d8c7c", "#94a3b8", "#a78bfa"]
+        bars = ax1.bar(labels_bar, values_bar, color=colors_bar, width=0.55, zorder=3)
+        for bar, val in zip(bars, values_bar):
+            ax1.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.5,
+                     str(round(val, 1)), ha="center", va="bottom", fontsize=8,
+                     color=TEXT, fontweight="500")
+        ax1.set_axisbelow(True)
+        ax1.yaxis.set_visible(False)
+        ax1.spines[["top", "right", "left"]].set_visible(False)
+        ax1.spines["bottom"].set_color("#e2e8f0")
+        ax1.tick_params(axis="x", labelsize=8, colors=MUTED)
+        plt.tight_layout(pad=0.4)
+        st.pyplot(fig1, use_container_width=True)
+        plt.close(fig1)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with c4:
+        st.markdown('<div class="chart-card"><div class="chart-title">Condition Flags</div>', unsafe_allow_html=True)
+        conditions = {
+            "Smoker": s2.get("smoker", 0),
+            "Asthma": s3.get("asthma", 0),
+            "Heart Dis.": s3.get("heart_disease", 0),
+            "Hypertension": s3.get("hypertension", 0),
+            "Diabetes": s3.get("diabetes", 0),
+        }
+        fig2, ax2 = plt.subplots(figsize=(4, 2.8))
+        fig2.patch.set_facecolor(BG)
+        ax2.set_facecolor(BG)
+        y_pos = range(len(conditions))
+        cond_names = list(conditions.keys())
+        cond_vals  = list(conditions.values())
+        for i, (name, val) in enumerate(zip(cond_names, cond_vals)):
+            color = "#ef4444" if val else "#3d8c7c"
+            label_txt = "Yes" if val else "No"
+            ax2.barh(i, 1, color=color, height=0.45, zorder=3)
+            ax2.text(1.08, i, label_txt, va="center", fontsize=8.5,
+                     color=TEXT, fontweight="500")
+        ax2.set_yticks(list(y_pos))
+        ax2.set_yticklabels([f"{n} –" for n in cond_names], fontsize=8, color=MUTED)
+        ax2.set_xlim(0, 1.6)
+        ax2.xaxis.set_visible(False)
+        ax2.spines[["top", "right", "bottom"]].set_visible(False)
+        ax2.spines["left"].set_color("#e2e8f0")
+        present_patch = mpatches.Patch(color="#ef4444", label="Present")
+        absent_patch  = mpatches.Patch(color="#3d8c7c", label="Absent")
+        ax2.legend(handles=[present_patch, absent_patch], loc="upper right",
+                   fontsize=7, frameon=False)
+        plt.tight_layout(pad=0.4)
+        st.pyplot(fig2, use_container_width=True)
+        plt.close(fig2)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # ── Charts row 2: Cost Factors donut + Coverage bar ───────────────────
+    age_val = s1.get("age", 30)
+    bmi_val = s1.get("bmi", 24.0)
+    smoker_val = s2.get("smoker", 0)
+    cond_count = sum([s3.get("diabetes", 0), s3.get("hypertension", 0),
+                      s3.get("heart_disease", 0), s3.get("asthma", 0)])
+    base_share = 5000
+    age_share  = max(0, (age_val - 18) * 50)
+    bmi_share  = max(0, (bmi_val - 18.5) * 80) if bmi_val > 18.5 else 0
+    smoke_share = 3000 if smoker_val else 0
+    cond_share  = cond_count * 500
+    total_fake  = base_share + age_share + bmi_share + smoke_share + cond_share
+    if total_fake == 0:
+        total_fake = base_share
+
+    pct_age   = age_share / total_fake * 100
+    pct_bmi   = bmi_share / total_fake * 100
+    pct_smoke = smoke_share / total_fake * 100
+    pct_cond  = cond_share / total_fake * 100
+    pct_base  = base_share / total_fake * 100
+
+    coverage_pct  = 0.60
+    covered_cost  = int(medical_cost * coverage_pct)
+    oop_cost      = medical_cost - covered_cost
+
+    c5, c6 = st.columns(2)
+    with c5:
+        st.markdown('<div class="chart-card"><div class="chart-title">Cost Factors</div>', unsafe_allow_html=True)
+        slices  = [pct_age, pct_bmi, pct_smoke, pct_cond, pct_base]
+        clabels = [f"{v:.0f}%" if v >= 5 else "" for v in slices]
+        ccolors = ["#3b82f6", "#3d8c7c", "#ef4444", "#f59e0b", "#a78bfa"]
+        fig3, ax3 = plt.subplots(figsize=(4, 3.2))
+        fig3.patch.set_facecolor(BG)
+        ax3.set_facecolor(BG)
+        wedges, texts = ax3.pie(
+            slices, labels=clabels, colors=ccolors,
+            startangle=90, wedgeprops=dict(width=0.52),
+            textprops=dict(fontsize=8.5, color=TEXT, fontweight="600")
+        )
+        legend_labels = ["Age", "BMI", "Smoking", "Conditions", "Base"]
+        legend_patches = [mpatches.Patch(color=c, label=l) for c, l in zip(ccolors, legend_labels)]
+        ax3.legend(handles=legend_patches, loc="lower center",
+                   bbox_to_anchor=(0.5, -0.18), ncol=3, fontsize=7, frameon=False)
+        plt.tight_layout(pad=0.4)
+        st.pyplot(fig3, use_container_width=True)
+        plt.close(fig3)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with c6:
+        st.markdown('<div class="chart-card"><div class="chart-title">Coverage (60%)</div>', unsafe_allow_html=True)
+        fig4, ax4 = plt.subplots(figsize=(4, 3.2))
+        fig4.patch.set_facecolor(BG)
+        ax4.set_facecolor(BG)
+        bar_labels  = ["Total", "Covered", "Out of Pocket"]
+        bar_values  = [medical_cost, covered_cost, oop_cost]
+        bar_colors  = ["#3b82f6", "#3d8c7c", "#ef8c8c"]
+        bars4 = ax4.bar(bar_labels, bar_values, color=bar_colors, width=0.45, zorder=3)
+        for bar, val in zip(bars4, bar_values):
+            ax4.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + max(bar_values)*0.02,
+                     f"₹{val:,}", ha="center", va="bottom", fontsize=7.5,
+                     color=TEXT, fontweight="500")
+        ax4.set_axisbelow(True)
+        ax4.yaxis.set_visible(False)
+        ax4.spines[["top", "right", "left"]].set_visible(False)
+        ax4.spines["bottom"].set_color("#e2e8f0")
+        ax4.tick_params(axis="x", labelsize=8, colors=MUTED)
+        plt.tight_layout(pad=0.4)
+        st.pyplot(fig4, use_container_width=True)
+        plt.close(fig4)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # ── Recommendations ───────────────────────────────────────────────────
+    st.markdown('<div class="rec-section-title">RECOMMENDATIONS</div>', unsafe_allow_html=True)
+
     recs = []
-    if s2["smoker"]:
-        recs.append(("🚭", "Quitting smoking can reduce your disease risk by up to 50% within 5 years."))
-    if s1["bmi"] > 27.5:
-        recs.append(("⚖️", f"Your BMI of {s1['bmi']} is above the ideal range. Aim for 18.5–24.9."))
-    if s3["stress_level"] > 6:
-        recs.append(("🧘", "High stress is a silent driver of cardiovascular risk. Try mindfulness or structured breaks."))
-    if s3["sleep_hours"] < 6:
-        recs.append(("😴", "Less than 6 hours of sleep raises cortisol and inflammation markers significantly."))
-    if s3["daily_steps"] < 5000:
-        recs.append(("🚶", "Aim for 8,000–10,000 steps a day to meaningfully lower chronic disease risk."))
+    if s2.get("smoker", 0):
+        recs.append(("Quit Smoking",
+                     "Quitting smoking can reduce your disease risk by up to 50% within 5 years and significantly lower your annual medical costs."))
+    if s1.get("bmi", 24) > 27.5:
+        recs.append(("Manage Your Weight",
+                     f"Your BMI of {s1['bmi']} is above the ideal range. Aim for 18.5–24.9 through balanced diet and regular activity."))
+    if s2.get("stress_level", 4) > 6:
+        recs.append(("Reduce Stress",
+                     "High stress is a silent driver of cardiovascular risk. Try mindfulness, structured breaks, or speaking to a counsellor."))
+    if s2.get("sleep_hours", 7) < 6:
+        recs.append(("Improve Sleep",
+                     "Less than 6 hours of sleep raises cortisol and inflammation markers significantly. Aim for 7–9 hours nightly."))
+    if s2.get("daily_steps", 7500) < 5000:
+        recs.append(("Increase Activity",
+                     "Aim for 8,000–10,000 steps a day to meaningfully lower chronic disease risk and improve overall wellbeing."))
     if not recs:
-        recs.append(("🌿", "Keep up the healthy habits — annual checkups and consistent activity are your best investment."))
+        recs.append(("General Wellness",
+                     "Even without specific conditions flagged, maintaining a healthy lifestyle helps reduce overall risk. Keep up your good habits and attend annual checkups."))
 
-    rec_items = "".join(
-        f'<div class="rec-item"><div class="rec-icon">{icon}</div><div>{text}</div></div>'
-        for icon, text in recs
-    )
-    st.markdown(f"""
-    <div class="rec-section">
-        <div class="rec-eyebrow">Recommendations</div>
-        {rec_items}
-    </div>
-    """, unsafe_allow_html=True)
+    for title, body in recs:
+        st.markdown(f"""
+        <div class="rec-card">
+            <div class="rec-card-title">{title}</div>
+            <div class="rec-card-body">{body}</div>
+        </div>
+        """, unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         if st.button("← Start Over", use_container_width=True):
-            for key in ["s1", "s2", "s3"]:
+            for key in ["s1", "s2", "s3", "gender", "insurance", "city",
+                        "smoker", "act_level", "diabetes", "hypertension",
+                        "heart_disease", "asthma"]:
                 st.session_state.pop(key, None)
             go(0)
